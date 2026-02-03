@@ -1,0 +1,181 @@
+<link rel="stylesheet" href="style.css">
+
+<h2>⚙️ Admin Panel</h2>
+
+<button onclick="create()">+ Create Game</button>
+
+<div id="games"></div>
+
+<hr>
+
+<div id="ticketsBox"></div>
+
+<script>
+
+/* ================= CREATE GAME ================= */
+
+async function create(){
+  await fetch("/createGame",{method:"POST"});
+  load();
+}
+
+/* ================= LOAD GAMES ================= */
+
+async function load(){
+
+  const list=await fetch("/games").then(r=>r.json());
+
+  games.innerHTML="";
+
+  list.forEach(id=>{
+
+    const d=document.createElement("div");
+    d.className="card";
+
+    d.innerHTML=`
+      <h3>${id}</h3>
+
+      Tickets <input id="${id}c" value="100">
+      Interval(sec) <input id="${id}i" value="3">
+      Start Time <input type="time" id="${id}t">
+
+      <br><br>
+
+      <button onclick="gen('${id}')">Generate</button>
+      <button onclick="startNow('${id}')">Start Now</button>
+      <button onclick="schedule('${id}')">Schedule</button>
+      <button onclick="stop('${id}')">Stop</button>
+      <button onclick="pdf('${id}')">Download PDF</button>
+      <button onclick="manage('${id}')">Manage Tickets</button>
+    `;
+
+    games.appendChild(d);
+  });
+}
+
+/* ================= GAME CONTROLS ================= */
+
+function gen(id){
+  fetch("/generate/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({count:document.getElementById(id+"c").value})
+  });
+}
+
+function startNow(id){
+  fetch("/start/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({interval:document.getElementById(id+"i").value})
+  });
+}
+
+function schedule(id){
+  fetch("/schedule/"+id,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      time:document.getElementById(id+"t").value,
+      interval:document.getElementById(id+"i").value
+    })
+  });
+}
+
+function stop(id){
+  fetch("/stop/"+id,{method:"POST"});
+}
+
+function pdf(id){
+  window.open("/pdf/"+id);
+}
+
+
+/* ================= TICKET MANAGEMENT ================= */
+
+async function manage(gid){
+
+  const tickets=await fetch("/tickets/"+gid).then(r=>r.json());
+
+  /* ✅ ADDED: search bar */
+  ticketsBox.innerHTML=`
+    <h2>${gid} Tickets</h2>
+
+    🔍 Find Ticket:
+    <input id="searchInput">
+    <button onclick="searchAdmin()">Find</button>
+    <hr>
+  `;
+
+  tickets.forEach(t=>{
+
+    const d=document.createElement("div");
+    d.className="card";
+
+    /* ✅ ADDED: id for search */
+    d.id="ticket-"+t.id;
+
+    d.innerHTML=`
+      Ticket ${t.id}
+
+      <select id="b${gid}_${t.id}">
+        <option ${!t.booked?"selected":""}>Available</option>
+        <option ${t.booked?"selected":""}>Booked</option>
+      </select>
+
+      <input id="n${gid}_${t.id}" value="${t.name}" placeholder="Buyer name">
+
+      <button onclick="save('${gid}',${t.id})">Save</button>
+    `;
+
+    ticketsBox.appendChild(d);
+  });
+}
+
+
+/* ================= NEW FEATURE: SEARCH ================= */
+
+function searchAdmin(){
+
+  const id=document.getElementById("searchInput").value;
+
+  document.querySelectorAll(".card").forEach(c=>{
+    c.style.outline="none";
+  });
+
+  const el=document.getElementById("ticket-"+id);
+
+  if(el){
+    el.scrollIntoView({behavior:"smooth"});
+    el.style.outline="4px solid yellow";
+  }
+}
+
+
+/* ================= SAVE ================= */
+
+function save(gid,id){
+
+  const booked=document.getElementById(`b${gid}_${id}`).value==="Booked";
+  const name=document.getElementById(`n${gid}_${id}`).value;
+
+  fetch(`/ticketUpdate/${gid}/${id}`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({booked,name})
+  });
+
+  alert("Saved");
+}
+
+
+/* ================= */
+
+load();
+
+</script>
+
+
+
+
+

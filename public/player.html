@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- ✅ NEW: confetti library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <title>Tambola Player</title>
+</head>
+
+<body>
+
+<h2>🎟️ Player Panel</h2>
+
+<!-- GAME BUTTONS -->
+<div id="games"></div>
+
+<hr>
+
+<!-- MAIN VIEW -->
+<div id="view"></div>
+
+
+<script>
+const socket = io();
+let currentGame = null;
+
+
+/* =================================================
+   LOAD GAMES (ROOMS)
+================================================= */
+
+async function loadGames(){
+
+  const list = await fetch("/games").then(r=>r.json());
+
+  games.innerHTML = "";
+
+  list.forEach(id=>{
+    const btn = document.createElement("button");
+    btn.innerText = id;
+    btn.style.margin = "6px";
+    btn.onclick = ()=> openGame(id);
+    games.appendChild(btn);
+  });
+}
+
+loadGames();
+
+
+/* =================================================
+   OPEN GAME
+================================================= */
+
+async function openGame(gid){
+
+  currentGame = gid;
+
+  socket.emit("join", gid);
+
+  view.innerHTML = `
+    <h2>${gid}</h2>
+
+    <h1 id="live" style="font-size:80px">-</h1>
+
+    <div id="boardBox" style="margin:20px"></div>
+
+    <h3>🏆 Winners</h3>
+    <div id="winners" class="card"></div>
+
+    <h3>Tickets</h3>
+
+    <!-- ✅ NEW: search bar -->
+    <div style="margin-bottom:10px">
+      🔍 Find Ticket:
+      <input id="searchInput" placeholder="Enter ID">
+      <button onclick="searchTicket()">Find</button>
+    </div>
+
+    <div id="tickets" class="wrapper"></div>
+  `;
+
+  createBoard();
+  loadTickets(gid);
+}
+
+
+/* =================================================
+   CREATE BOARD (1–90)
+================================================= */
+
+function createBoard(){
+
+  const grid = document.createElement("div");
+  grid.className = "board";
+
+  for(let i=1;i<=90;i++){
+    const d=document.createElement("div");
+    d.className="num";
+    d.id="num"+i;
+    d.innerText=i;
+    grid.appendChild(d);
+  }
+
+  boardBox.appendChild(grid);
+}
+
+function toggleBoard(){
+  boardBox.style.display =
+    boardBox.style.display==="none" ? "block" : "none";
+}
+
+
+/* =================================================
+   🔍 NEW FEATURE: SEARCH TICKET
+================================================= */
+
+function searchTicket(){
+
+  const id = document.getElementById("searchInput").value;
+
+  document.querySelectorAll(".card").forEach(c=>{
+    c.style.outline="none";
+  });
+
+  const el = document.getElementById("ticket-"+id);
+
+  if(el){
+    el.scrollIntoView({behavior:"smooth"});
+    el.style.outline="4px solid yellow";
+  }
+}
+
+
+/* =================================================
+   LOAD TICKETS
+================================================= */
+
+async function loadTickets(gid){
+
+  tickets.innerHTML="";
+
+  const all = await fetch(`/tickets/${gid}`).then(r=>r.json());
+
+  all.forEach(t=> createTicket(t));
+}
+
+
+/* =================================================
+   CREATE TICKET (UNCHANGED + id added)
+================================================= */
+
+function createTicket(t){
+
+  const card=document.createElement("div");
+  card.className="card";
+
+  /* ✅ NEW: id for search highlight */
+  card.id = "ticket-" + t.id;
+
+
+  /* ================= STATUS BADGE ================= */
+
+  const status=document.createElement("div");
+
+  if(t.booked){
+    status.innerHTML=`🔴 Booked – ${t.name || "Reserved"}`;
+    status.style.color="red";
+  }else{
+    status.innerHTML="🟢 Available";
+    status.style.color="green";
+  }
+
+  status.style.fontWeight="bold";
+  status.style.marginBottom="6px";
+  card.appendChild(status);
+
+
+  const title=document.createElement("div");
+  title.innerText="Ticket "+t.id;
+  title.style.marginBottom="5px";
+  card.appendChild(title);
+
+
+  const grid=document.createElement("div");
+  grid.className="ticket";
+
+  for(let r=0;r<3;r++){
+    for(let c=0;c<9;c++){
+      const d=document.createElement("div");
+      d.className="cell";
+      d.innerText=t.numbers[r][c]||"";
+      grid.appendChild(d);
+    }
+  }
+
+  card.appendChild(grid);
+
+  tickets.appendChild(card);
+}
+
+
+/* =================================================
+   SOCKET EVENTS (UNCHANGED + CONFETTI ADDED)
+================================================= */
+
+socket.on("number", n=>{
+
+  if(!currentGame) return;
+
+  live.innerText=n;
+
+  document.querySelectorAll(".cell").forEach(c=>{
+    if(c.innerText==n) c.classList.add("marked");
+  });
+
+  const el=document.getElementById("num"+n);
+  if(el) el.classList.add("called");
+});
+
+
+socket.on("winner", w=>{
+
+  if(!currentGame) return;
+
+  const d=document.createElement("div");
+  d.innerText=w.type+" → Ticket "+w.id;
+
+  winners.appendChild(d);
+
+  /* 🎉 NEW: CONFETTI ANIMATION */
+  confetti({
+    particleCount:180,
+    spread:120,
+    origin:{y:0.6}
+  });
+});
+
+</script>
+</body>
+</html>
+
+

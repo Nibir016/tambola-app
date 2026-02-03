@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Secret Login</title>
+</head>
+
+<body style="text-align:center;margin-top:150px">
+
+<h2>🔐 Secret Panel Login</h2>
+
+<input type="password" id="pass" placeholder="Enter password">
+<button onclick="login()">Login</button>
+
+<p id="msg" style="color:red"></p>
+
+<script>
+
+async function login(){
+
+  const p = pass.value;
+
+  const res = await fetch("/secret-login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({password:p})
+  }).then(r=>r.json());
+
+  if(res.ok){
+    window.location.href="secret-panel.html";
+  } else {
+    msg.innerText="Wrong password ❌";
+  }
+}
+
+</script>
+</body>
+</html>

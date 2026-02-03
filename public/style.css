@@ -1,0 +1,201 @@
+/* =========================================
+   MODERN 2026 GAME STYLE
+   (CSS ONLY – NO FEATURE REMOVED)
+========================================= */
+
+*{
+  box-sizing:border-box;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body{
+  margin:0;
+  padding:14px;
+  color:white;
+
+  background:
+    radial-gradient(circle at 20% 20%, #1a2a6c, transparent),
+    radial-gradient(circle at 80% 80%, #0f2027, transparent),
+    linear-gradient(135deg,#141e30,#243b55);
+
+  min-height:100vh;
+}
+
+
+/* =========================================
+   HEADINGS
+========================================= */
+
+h2,h3{
+  margin:8px 0;
+  font-weight:700;
+}
+
+
+/* =========================================
+   GLASS CARDS
+========================================= */
+
+.card{
+  background:rgba(255,255,255,0.07);
+  backdrop-filter:blur(14px);
+
+  border-radius:18px;
+  padding:12px;
+  margin:8px;
+
+  border:1px solid rgba(255,255,255,0.15);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,0.4);
+}
+
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+button{
+  background:linear-gradient(135deg,#00c6ff,#0072ff);
+  border:none;
+  color:white;
+  padding:8px 14px;
+  border-radius:12px;
+  font-weight:600;
+  cursor:pointer;
+  margin:4px;
+  transition:.2s;
+}
+
+button:hover{
+  transform:scale(1.05);
+}
+
+
+/* =========================================
+   GRID WRAPPER
+========================================= */
+
+.wrapper{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:12px;
+}
+
+
+/* =========================================
+   LIVE NUMBER (GLOW EFFECT)
+========================================= */
+
+#live{
+  font-size:85px;
+  font-weight:900;
+  color:#00ffcc;
+
+  text-shadow:
+    0 0 10px #00ffcc,
+    0 0 30px #00ffcc,
+    0 0 60px #00ffcc;
+}
+
+
+/* =========================================
+   BOARD (1–90)
+========================================= */
+
+.board{
+  display:grid;
+  grid-template-columns:repeat(10,1fr);
+  gap:6px;
+  max-width:720px;
+  margin:0 auto;
+}
+
+.num{
+  height:34px;
+  border-radius:50%;
+  background:#0f0f0f;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:bold;
+  color:#aaa;
+}
+
+.called{
+  background:#00ffcc !important;
+  color:black !important;
+  box-shadow:0 0 15px #00ffcc;
+}
+
+
+/* =========================================
+   TICKET GRID
+========================================= */
+
+.ticket{
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+  gap:3px;
+  margin-top:8px;
+}
+
+.cell{
+  height:28px;
+  border-radius:6px;
+  background:#1b1b1b;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+}
+
+.marked{
+  background:#00ffcc !important;
+  color:black !important;
+  box-shadow:0 0 10px #00ffcc;
+}
+
+
+/* =========================================
+   STATUS BADGES
+========================================= */
+
+.status-available{
+  color:#00ffcc;
+  font-weight:bold;
+}
+
+.status-booked{
+  color:#ff4d4d;
+  font-weight:bold;
+}
+
+
+/* =========================================
+   MOBILE OPTIMIZATION
+========================================= */
+
+@media(max-width:600px){
+
+  #live{
+    font-size:55px;
+  }
+
+  .cell{
+    height:24px;
+    font-size:12px;
+  }
+
+  .num{
+    height:26px;
+    font-size:12px;
+  }
+
+  button{
+    padding:6px 10px;
+    font-size:12px;
+  }
+}
+
