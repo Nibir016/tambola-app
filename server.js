@@ -23,68 +23,49 @@ const ALL = [...Array(90)].map((_, i) => i + 1);
 
 /* ================= REAL TAMBOLA GENERATOR ================= */
 
+/* =================================================
+   PERFECT TAMBOLA GENERATOR (100% CORRECT)
+   ALWAYS:
+   ✔ 15 numbers
+   ✔ 5 per row
+   ✔ correct column ranges
+   ✔ no duplicates
+================================================= */
+
 function generateTicket(){
 
-  // empty 3x9 grid
   const grid = Array.from({length:3},()=>Array(9).fill(""));
 
-  // how many numbers each column gets (total 15)
-  let colCounts = Array(9).fill(1); // minimum 1 each
-  let remaining = 6; // 15 - 9
+  // STEP 1 — choose 5 columns per row
+  const rowCols = [];
 
-  // randomly distribute remaining
-  while(remaining>0){
-    const c = Math.floor(Math.random()*9);
-    if(colCounts[c] < 3){
-      colCounts[c]++;
-      remaining--;
-    }
+  for(let r=0;r<3;r++){
+    rowCols[r] = shuffle([0,1,2,3,4,5,6,7,8]).slice(0,5);
   }
 
-  // fill each column with numbers from its range
+  // STEP 2 — count numbers needed per column
+  const colCounts = Array(9).fill(0);
+
+  rowCols.forEach(cols=>{
+    cols.forEach(c=> colCounts[c]++);
+  });
+
+  // STEP 3 — generate numbers column-wise
   for(let c=0;c<9;c++){
 
-    const start = c*10 + 1;
-    const end   = c==8 ? 90 : start+9;
+    const start = c*10+1;
+    const end   = c===8 ? 90 : start+9;
 
     let pool=[];
     for(let i=start;i<=end;i++) pool.push(i);
 
     pool = shuffle(pool).slice(0,colCounts[c]).sort((a,b)=>a-b);
 
-    // choose random rows for this column
-    let rows = shuffle([0,1,2]).slice(0,colCounts[c]);
+    let k=0;
 
-    rows.forEach((r,i)=>{
-      grid[r][c]=pool[i];
-    });
-  }
-
-  // ensure each row has exactly 5 numbers
-  for(let r=0;r<3;r++){
-
-    let filled = grid[r].filter(x=>x!="").length;
-
-    while(filled>5){
-      const c=Math.floor(Math.random()*9);
-      if(grid[r][c]!=""){
-        grid[r][c]="";
-        filled--;
-      }
-    }
-
-    while(filled<5){
-      const c=Math.floor(Math.random()*9);
-      if(grid[r][c]==""){
-        // borrow from another row in same column
-        for(let rr=0;rr<3;rr++){
-          if(rr!==r && grid[rr][c]!=""){
-            grid[r][c]=grid[rr][c];
-            grid[rr][c]="";
-            filled++;
-            break;
-          }
-        }
+    for(let r=0;r<3;r++){
+      if(rowCols[r].includes(c)){
+        grid[r][c]=pool[k++];
       }
     }
   }
@@ -94,126 +75,93 @@ function generateTicket(){
 
 
 
+
 /* =================================================
    ⭐⭐⭐ DETERMINISTIC CONTROLLED SEQUENCE ⭐⭐⭐
    ONLY THIS FUNCTION CHANGED
 ================================================= */
+/* ================= SAFE CONTROLLED SEQUENCE ================= */
 
 function buildSequence(g){
 
-  let numbers = shuffle([...ALL]);
-  const s = g.secret;
+  const result = new Array(90).fill(null);
 
-  const remove = arr => {
-    numbers = numbers.filter(x => !arr.includes(x));
+  let pool = shuffle([...ALL]);
+
+  const removeFromPool = nums=>{
+    pool = pool.filter(n=>!nums.includes(n));
   };
 
-  const insertRandom = (n, start, end) => {
-    const pos = Math.floor(Math.random()*(end-start))+start;
-    numbers.splice(pos,0,n);
-  };
+  const placeInWindow = (nums,start,end)=>{
 
-  const get = id => g.tickets.find(t=>t.id==id);
+    nums = shuffle([...nums]);
 
-  /* ---------- helper to enforce limits ---------- */
+    const slots=[];
 
-  function enforceLimit(getNums, start, end, maxAllowed, winnerId){
+    for(let i=start;i<end;i++){
+      if(!result[i]) slots.push(i);
+    }
 
-    g.tickets.forEach(t=>{
+    shuffle(slots);
 
-      if(t.id==winnerId) return;
-
-      const arr=getNums(t);
-
-      let count=0;
-
-      arr.forEach(n=>{
-        const idx=numbers.indexOf(n);
-        if(idx>=start && idx<=end) count++;
-      });
-
-      while(count>maxAllowed){
-        const move=arr[Math.floor(Math.random()*arr.length)];
-        const idx=numbers.indexOf(move);
-        if(idx>=start && idx<=end){
-          numbers.splice(idx,1);
-          numbers.push(move); // push late
-          count--;
-        }
-      }
+    nums.forEach((n,i)=>{
+      result[slots[i]] = n;
     });
-  }
+  };
 
-  /* ================= EARLY5 ================= */
+  const get=id=>g.tickets.find(t=>t.id==id);
+  const s=g.secret || {};
 
+  // Early5
   if(s.early5){
     const t=get(s.early5);
-    const arr=t.numbers.flat().slice(0,5);
-
-    remove(arr);
-    arr.forEach(n=>insertRandom(n,15,40));
-
-    enforceLimit(
-      ticket=>ticket.numbers.flat(),
-      15,40,
-      4,
-      s.early5
-    );
+    if(t){
+      const nums = shuffle(t.numbers.flat().filter(x=>x)).slice(0,5);
+      removeFromPool(nums);
+      placeInWindow(nums,20,35);
+    }
   }
 
-  /* ================= BOTTOM4 ================= */
-
+  // Bottom4
   if(s.bot4){
     const t=get(s.bot4);
-    const arr=t.numbers[2].slice(0,4);
-
-    remove(arr);
-    arr.forEach(n=>insertRandom(n,25,55));
-
-    enforceLimit(
-      ticket=>ticket.numbers[2],
-      25,55,
-      3,
-      s.bot4
-    );
+    if(t){
+      const nums=t.numbers[2].filter(x=>x).slice(0,4);
+      removeFromPool(nums);
+      placeInWindow(nums,30,50);
+    }
   }
 
-  /* ================= TOP3 ================= */
-
+  // Top3
   if(s.top3){
     const t=get(s.top3);
-    const arr=t.numbers[0].slice(0,3);
-
-    remove(arr);
-    arr.forEach(n=>insertRandom(n,40,65));
-
-    enforceLimit(
-      ticket=>ticket.numbers[0],
-      40,65,
-      2,
-      s.top3
-    );
+    if(t){
+      const nums=t.numbers[0].filter(x=>x).slice(0,3);
+      removeFromPool(nums);
+      placeInWindow(nums,45,65);
+    }
   }
 
-  /* ================= FULL ================= */
-
+  // Full
   if(s.full){
     const t=get(s.full);
-    const arr=t.numbers.flat();
-
-    remove(arr);
-    arr.forEach(n=>insertRandom(n,70,90));
-
-    enforceLimit(
-      ticket=>ticket.numbers.flat(),
-      70,90,
-      14,
-      s.full
-    );
+    if(t){
+      const nums=t.numbers.flat().filter(x=>x);
+      removeFromPool(nums);
+      placeInWindow(nums,75,90);
+    }
   }
 
-  return numbers;
+  // fill remaining safely
+  shuffle(pool);
+
+  for(let i=0;i<90;i++){
+    if(!result[i]) result[i]=pool.shift();
+  }
+
+  return result;
 }
+
 
 
 /* ================= CREATE GAME ================= */
@@ -279,29 +227,61 @@ app.post("/secret/:gid",(req,res)=>{
 
 function checkWins(gid){
 
-  const g=games[gid];
-  const marked=n=>g.called.includes(n);
+  const g = games[gid];
+  const s = g.secret || {};
+  const marked = n => g.called.includes(n);
 
   for(const t of g.tickets){
 
-    const flat=t.numbers.flat().filter(x=>x);
-    const total=flat.filter(marked).length;
-    const top=t.numbers[0].filter(x=>x).filter(marked).length;
-    const bottom=t.numbers[2].filter(x=>x).filter(marked).length;
+    const flat = t.numbers.flat().filter(x=>x);
 
-    const win=type=>{
+    const total = flat.filter(marked).length;
+    const top = t.numbers[0].filter(x=>x).filter(marked).length;
+    const bottom = t.numbers[2].filter(x=>x).filter(marked).length;
+
+    const announce = type=>{
       if(!g.winners[type]){
-        g.winners[type]=t.id;
-        io.to(gid).emit("winner",{type,id:t.id});
+        g.winners[type] = t.id;
+
+        console.log("WINNER:", type, t.id); // debug
+
+        io.to(gid).emit("winner",{
+          type,
+          id:t.id
+        });
       }
     };
 
-    if(total>=5) win("early5");
-    if(bottom>=4) win("bot4");
-    if(top>=3) win("top3");
-    if(total===15) win("full");
+    /* =============================
+       SIMPLE + RELIABLE LOGIC
+    ============================== */
+
+    // Early 5
+    if(total >= 5){
+      if(!s.early5 || s.early5 == t.id)
+        announce("early5");
+    }
+
+    // Top 3
+    if(top >= 3){
+      if(!s.top3 || s.top3 == t.id)
+        announce("top3");
+    }
+
+    // Bottom 4
+    if(bottom >= 4){
+      if(!s.bot4 || s.bot4 == t.id)
+        announce("bot4");
+    }
+
+    // Full House
+    if(total === 15){
+      if(!s.full || s.full == t.id)
+        announce("full");
+    }
   }
 }
+
 
 
 /* ================= START ================= */

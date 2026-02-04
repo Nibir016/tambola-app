@@ -206,6 +206,32 @@ socket.on("number", n=>{
   if(el) el.classList.add("called");
 });
 
+/* =================================================
+   LIVE WINNER ANNOUNCEMENT (REQUIRED)
+================================================= */
+
+socket.on("winner", w=>{
+
+  if(!currentGame) return;
+
+  const card=document.createElement("div");
+  card.className="winnerCard";
+
+  card.innerHTML=`
+    <b>${labels[w.type] || w.type}</b><br>
+    Ticket ${w.id}
+  `;
+
+  winners.appendChild(card);
+
+  confetti({
+    particleCount:180,
+    spread:120,
+    origin:{y:0.6}
+  });
+
+});
+
 
 /* =================================================
    WINNER DISPLAY (NEW LAYOUT)
