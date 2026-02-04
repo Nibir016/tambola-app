@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="/socket.io/socket.io.js"></script>
 
-  <!-- ✅ NEW: confetti library -->
+  <!-- confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <title>Tambola Player</title>
@@ -14,12 +14,10 @@
 
 <h2>🎟️ Player Panel</h2>
 
-<!-- GAME BUTTONS -->
 <div id="games"></div>
 
 <hr>
 
-<!-- MAIN VIEW -->
 <div id="view"></div>
 
 
@@ -29,7 +27,7 @@ let currentGame = null;
 
 
 /* =================================================
-   LOAD GAMES (ROOMS)
+   LOAD GAMES
 ================================================= */
 
 async function loadGames(){
@@ -63,16 +61,15 @@ async function openGame(gid){
   view.innerHTML = `
     <h2>${gid}</h2>
 
-    <h1 id="live" style="font-size:80px">-</h1>
+    <h1 id="live" style="font-size:80px;text-align:center">-</h1>
 
     <div id="boardBox" style="margin:20px"></div>
 
     <h3>🏆 Winners</h3>
-    <div id="winners" class="card"></div>
+    <div id="winners" class="winnerGrid"></div>
 
     <h3>Tickets</h3>
 
-    <!-- ✅ NEW: search bar -->
     <div style="margin-bottom:10px">
       🔍 Find Ticket:
       <input id="searchInput" placeholder="Enter ID">
@@ -88,7 +85,7 @@ async function openGame(gid){
 
 
 /* =================================================
-   CREATE BOARD (1–90)
+   CREATE BOARD
 ================================================= */
 
 function createBoard(){
@@ -107,14 +104,9 @@ function createBoard(){
   boardBox.appendChild(grid);
 }
 
-function toggleBoard(){
-  boardBox.style.display =
-    boardBox.style.display==="none" ? "block" : "none";
-}
-
 
 /* =================================================
-   🔍 NEW FEATURE: SEARCH TICKET
+   SEARCH
 ================================================= */
 
 function searchTicket(){
@@ -149,19 +141,14 @@ async function loadTickets(gid){
 
 
 /* =================================================
-   CREATE TICKET (UNCHANGED + id added)
+   CREATE TICKET
 ================================================= */
 
 function createTicket(t){
 
   const card=document.createElement("div");
   card.className="card";
-
-  /* ✅ NEW: id for search highlight */
   card.id = "ticket-" + t.id;
-
-
-  /* ================= STATUS BADGE ================= */
 
   const status=document.createElement("div");
 
@@ -197,13 +184,12 @@ function createTicket(t){
   }
 
   card.appendChild(grid);
-
   tickets.appendChild(card);
 }
 
 
 /* =================================================
-   SOCKET EVENTS (UNCHANGED + CONFETTI ADDED)
+   SOCKET EVENTS
 ================================================= */
 
 socket.on("number", n=>{
@@ -221,25 +207,77 @@ socket.on("number", n=>{
 });
 
 
-socket.on("winner", w=>{
+/* =================================================
+   WINNER DISPLAY (NEW LAYOUT)
+================================================= */
 
-  if(!currentGame) return;
+const labels = {
+  early5:"🟡 Early 5",
+  top3:"🔵 Top 3",
+  bot4:"🟣 Bottom 4",
+  full:"🏆 Full House"
+};
 
-  const d=document.createElement("div");
-  d.innerText=w.type+" → Ticket "+w.id;
+/* =================================================
+   HISTORY SYNC (NEW)
+================================================= */
 
-  winners.appendChild(d);
+socket.on("history", data=>{
 
-  /* 🎉 NEW: CONFETTI ANIMATION */
-  confetti({
-    particleCount:180,
-    spread:120,
-    origin:{y:0.6}
+  // restore called numbers
+  data.called.forEach(n=>{
+
+    live.innerText = n;
+
+    const el=document.getElementById("num"+n);
+    if(el) el.classList.add("called");
+
+    document.querySelectorAll(".cell").forEach(c=>{
+      if(c.innerText==n) c.classList.add("marked");
+    });
+
   });
+
+  // restore winners
+  Object.entries(data.winners).forEach(([type,id])=>{
+
+    const card=document.createElement("div");
+    card.className="winnerCard";
+
+    card.innerHTML=`
+      <b>${labels[type] || type}</b><br>
+      Ticket ${id}
+    `;
+
+    winners.appendChild(card);
+
+  });
+
 });
 
+
 </script>
+
+
+<style>
+
+/* winners layout */
+.winnerGrid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.winnerCard{
+  background:#1f2b3d;
+  padding:12px 18px;
+  border-radius:10px;
+  font-size:14px;
+  box-shadow:0 0 8px #0006;
+}
+
+</style>
+
 </body>
 </html>
-
-
