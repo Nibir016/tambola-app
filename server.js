@@ -22,7 +22,7 @@ const ALL = [...Array(90)].map((_, i) => i + 1);
 
 
 /* =================================================
-   PERFECT TAMBOLA GENERATOR (15 numbers, valid cols)
+   PERFECT TICKET GENERATOR
 ================================================= */
 
 function generateTicket() {
@@ -59,14 +59,38 @@ function generateTicket() {
 
 
 /* =================================================
-   🔥🔥🔥 BLOCKING ENGINE (REAL FIX)
+   ⭐ NATURAL FULL HOUSE ENGINE (ONLY CONTROL)
 ================================================= */
 
+function buildSequence(g){
 
+  const winnerId = g.secret.full;
 
+  let numbers = shuffle([...ALL]);
 
+  if(!winnerId) return numbers;
 
+  const winner = g.tickets.find(t=>t.id === winnerId);
 
+  const winNums = winner.numbers.flat().filter(x=>x);
+
+  // remove winner numbers
+  numbers = numbers.filter(n=>!winNums.includes(n));
+
+  const result = [];
+
+  // first 50 completely random
+  result.push(...numbers.splice(0,50));
+
+  // next 25 mix winner numbers
+  const mixed = shuffle([...numbers.splice(0,25), ...winNums.slice(0,10)]);
+  result.push(...mixed);
+
+  // last remaining winner numbers
+  result.push(...shuffle(winNums.slice(10)));
+
+  return result;
+}
 
 
 
@@ -81,11 +105,10 @@ app.post("/createGame", (req, res) => {
   games[id] = {
     tickets: [],
     called: [],
-    remaining: [],
     winners: {},
     secret: {},
-    timer: null,
-    timeout: null
+    remaining: [],
+    timer: null
   };
 
   res.json({ id });
@@ -101,11 +124,10 @@ app.get("/games", (req, res) => res.json(Object.keys(games)));
 app.post("/generate/:gid", (req, res) => {
 
   const g = games[req.params.gid];
-  const count = Number(req.body.count);
 
   g.tickets = [];
 
-  for (let i = 1; i <= count; i++)
+  for (let i = 1; i <= req.body.count; i++)
     g.tickets.push({
       id: i,
       numbers: generateTicket(),
@@ -116,9 +138,9 @@ app.post("/generate/:gid", (req, res) => {
   res.send("ok");
 });
 
-app.get("/tickets/:gid", (req, res) => {
-  res.json(games[req.params.gid].tickets);
-});
+app.get("/tickets/:gid", (req, res) =>
+  res.json(games[req.params.gid].tickets)
+);
 
 app.post("/ticketUpdate/:gid/:id", (req, res) => {
 
@@ -134,18 +156,14 @@ app.post("/ticketUpdate/:gid/:id", (req, res) => {
 
 
 /* =================================================
-   SECRET
+   SECRET (ONLY FULL)
 ================================================= */
 
 app.post("/secret/:gid", (req, res) => {
 
   games[req.params.gid].secret = {
-    early5: Number(req.body.early5) || null,
-    top3: Number(req.body.top3) || null,
-    bot4: Number(req.body.bot4) || null,
     full: Number(req.body.full) || null
   };
-console.log("SECRET SAVED:", games[req.params.gid].secret);
 
   res.send("ok");
 });
@@ -158,16 +176,12 @@ console.log("SECRET SAVED:", games[req.params.gid].secret);
 function checkWins(gid) {
 
   const g = games[gid];
-  const s = g.secret || {};
   const marked = n => g.called.includes(n);
 
   for (const t of g.tickets) {
 
     const flat = t.numbers.flat().filter(x => x);
-
     const total = flat.filter(marked).length;
-    const top = t.numbers[0].filter(x => x).filter(marked).length;
-    const bottom = t.numbers[2].filter(x => x).filter(marked).length;
 
     const announce = type => {
       if (!g.winners[type]) {
@@ -176,122 +190,35 @@ function checkWins(gid) {
       }
     };
 
-    // ✅ EARLY 5
-    if (total >= 5) {
-      if (!s.early5 || s.early5 === t.id) {
-        announce("early5");
-      }
-    }
+    if (total >= 5) announce("early5");
+    if (t.numbers[0].filter(x => marked(x)).length >= 3) announce("top3");
+    if (t.numbers[2].filter(x => marked(x)).length >= 4) announce("bot4");
 
-    // ✅ TOP 3
-    if (top >= 3) {
-      if (!s.top3 || s.top3 === t.id) {
-        announce("top3");
-      }
-    }
-
-    // ✅ BOTTOM 4
-    if (bottom >= 4) {
-      if (!s.bot4 || s.bot4 === t.id) {
-        announce("bot4");
-      }
-    }
-
-    // ✅ FULL HOUSE
-    if (total === 15) {
-      if (!s.full || s.full === t.id) {
-        announce("full");
-      }
-    }
   }
 }
 
-/* ================= SAFE PICKER ================= */
 
-function nextSafeNumber(g){
-
-  const drawCount = g.called.length;
-
-// natural timing windows
-const windows = {
-  early5: drawCount >= 20,
-  bot4:   drawCount >= 30,
-  top3:   drawCount >= 45,
-  full:   drawCount >= 75
-};
-
-  const s = g.secret || {};
-
-  const candidates = shuffle([...g.remaining]);
-
-  const marked = n => g.called.includes(n);
-
-  const wouldTrigger = (ticket, type, num) => {
-
-  const called = [...g.called, num];
-
-  const count = arr => arr.filter(n => called.includes(n)).length;
-
-  const flat = ticket.numbers.flat().filter(x=>x);
-
-  if(type==="early5")
-    return count(flat) >= 5;
-
-  if(type==="top3")
-    return count(ticket.numbers[0].filter(x=>x)) >= 3;
-
-  if(type==="bot4")
-    return count(ticket.numbers[2].filter(x=>x)) >= 4;
-
-  if(type==="full")
-    return count(flat) >= 15; // >= not ===
-
-  return false;
-};
-
-
-  for(const num of candidates){
-
-    let safe = true;
-
-    for(const t of g.tickets){
-
-      if(s.early5 && t.id !== s.early5 && wouldTrigger(t,"early5",num)) safe=false;
-      if(s.top3   && t.id !== s.top3   && wouldTrigger(t,"top3",num))   safe=false;
-      if(s.bot4   && t.id !== s.bot4   && wouldTrigger(t,"bot4",num))   safe=false;
-      if(s.full   && t.id !== s.full   && wouldTrigger(t,"full",num))   safe=false;
-      // block secret ticket until its window time
-if (s.early5 && t.id === s.early5 && !windows.early5 && wouldTrigger(t,"early5",num)) safe=false;
-if (s.top3   && t.id === s.top3   && !windows.top3   && wouldTrigger(t,"top3",num))   safe=false;
-if (s.bot4   && t.id === s.bot4   && !windows.bot4   && wouldTrigger(t,"bot4",num))   safe=false;
-if (s.full   && t.id === s.full   && !windows.full   && wouldTrigger(t,"full",num))   safe=false;
-
-
-      if(!safe) break;
-    }
-
-    if(safe){
-      g.remaining = g.remaining.filter(x=>x!==num);
-      return num;
-    }
-  }
-
-  // fallback
-  return g.remaining.shift();
-}
-/* ================= START (FIXED SAFE VERSION) ================= */
+/* =================================================
+   START GAME
+================================================= */
 
 function startGame(gid, interval){
 
   const g = games[gid];
+  console.log("STOPPING GAME");
+
 
   clearInterval(g.timer);
 
   g.called = [];
   g.winners = {};
 
-  // ALWAYS random — blocking logic handles safety
   g.remaining = shuffle([...ALL]);
+
+  const winnerId = g.secret.full;
+
+  const countMarked = (ticket, called) =>
+    ticket.numbers.flat().filter(n=>called.includes(n)).length;
 
   g.timer = setInterval(()=>{
 
@@ -300,64 +227,68 @@ function startGame(gid, interval){
       return;
     }
 
-    const n = nextSafeNumber(g);
+    let chosen = null;
 
-    g.called.push(n);
+    // pick safe number
+    for(const num of shuffle([...g.remaining])){
 
-    io.to(gid).emit("number", n);
+      const testCalled = [...g.called, num];
 
-    checkWins(gid);
+      let safe = true;
 
-  }, interval * 1000);
+      for(const t of g.tickets){
+
+        const total = countMarked(t, testCalled);
+
+        // ❌ block other tickets from reaching 15
+        if(winnerId && t.id !== winnerId && total === 15){
+          safe = false;
+          break;
+        }
+      }
+
+      if(safe){
+        chosen = num;
+        break;
+      }
+    }
+
+    if(!chosen) chosen = g.remaining[0];
+
+    g.remaining = g.remaining.filter(x=>x!==chosen);
+
+    g.called.push(chosen);
+
+    io.to(gid).emit("number", chosen);
+
+    /* ⭐ ADD THIS LINE BACK */
+    checkWins(gid);   // ← restores early5/top3/bot4
+
+    /* ===== FULL HOUSE CONTROL ===== */
+
+    if(winnerId){
+
+      const winnerTicket = g.tickets.find(t=>t.id===winnerId);
+
+      const total = countMarked(winnerTicket, g.called);
+
+      if(total === 15){
+
+        io.to(gid).emit("winner",{ type:"full", id:winnerId });
+
+        clearInterval(g.timer); // stop game
+        return;
+      }
+    }
+
+  }, interval*1000);
 }
+
 
 
 app.post("/start/:gid", (req, res) => {
   startGame(req.params.gid, req.body.interval);
   res.send("ok");
-});
-
-
-/* =================================================
-   STOP / SCHEDULE / PDF (unchanged)
-================================================= */
-
-app.post("/stop/:gid", (req, res) => {
-  clearInterval(games[req.params.gid].timer);
-  res.send("ok");
-});
-
-app.post("/schedule/:gid", (req, res) => {
-
-  const { time, interval } = req.body;
-  const g = games[req.params.gid];
-
-  const now = new Date();
-  const target = new Date();
-
-  const [h, m] = time.split(":");
-  target.setHours(h);
-  target.setMinutes(m);
-
-  if (target < now) target.setDate(target.getDate() + 1);
-
-  g.timeout = setTimeout(() => startGame(req.params.gid, interval), target - now);
-
-  res.send("scheduled");
-});
-
-app.get("/pdf/:gid", (req, res) => {
-
-  const g = games[req.params.gid];
-
-  const doc = new PDFDocument();
-  res.setHeader("Content-Type", "application/pdf");
-
-  doc.pipe(res);
-
-  g.tickets.forEach(t => doc.text("Ticket " + t.id));
-
-  doc.end();
 });
 
 
@@ -367,11 +298,8 @@ io.on("connection", s => {
   s.on("join", gid => s.join(gid));
 });
 
-app.get("/debug/:gid",(req,res)=>{
-  res.json(games[req.params.gid].secret);
-});
-
 server.listen(3000, () => console.log("Running 3000"));
+
 
 
 

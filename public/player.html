@@ -24,6 +24,8 @@
 <script>
 const socket = io();
 let currentGame = null;
+let gameOver = false;   // ⭐ ADD THIS LINE
+
 
 
 /* =================================================
@@ -194,7 +196,7 @@ function createTicket(t){
 
 socket.on("number", n=>{
 
-  if(!currentGame) return;
+  if(!currentGame || gameOver) return;   // ⭐ STOP IF GAME ENDED
 
   live.innerText=n;
 
@@ -206,6 +208,7 @@ socket.on("number", n=>{
   if(el) el.classList.add("called");
 });
 
+
 /* =================================================
    LIVE WINNER ANNOUNCEMENT (REQUIRED)
 ================================================= */
@@ -214,7 +217,10 @@ socket.on("winner", w=>{
 
   if(!currentGame) return;
 
+  if(w.type === "full") gameOver = true;   // ⭐ ADD THIS LINE
+
   const card=document.createElement("div");
+
   card.className="winnerCard";
 
   card.innerHTML=`
