@@ -20,13 +20,10 @@
 
 <div id="view"></div>
 
-
 <script>
 const socket = io();
 let currentGame = null;
 let gameOver = false;   // ⭐ ADD THIS LINE
-
-
 
 /* =================================================
    LOAD GAMES
@@ -48,7 +45,6 @@ async function loadGames(){
 }
 
 loadGames();
-
 
 /* =================================================
    OPEN GAME
@@ -80,16 +76,12 @@ async function openGame(gid){
 
     <div id="tickets" class="wrapper"></div>
   `;
-
   createBoard();
   loadTickets(gid);
 }
-
-
 /* =================================================
    CREATE BOARD
 ================================================= */
-
 function createBoard(){
 
   const grid = document.createElement("div");
@@ -127,7 +119,6 @@ function searchTicket(){
   }
 }
 
-
 /* =================================================
    LOAD TICKETS
 ================================================= */
@@ -161,17 +152,14 @@ function createTicket(t){
     status.innerHTML="🟢 Available";
     status.style.color="green";
   }
-
   status.style.fontWeight="bold";
   status.style.marginBottom="6px";
   card.appendChild(status);
-
 
   const title=document.createElement("div");
   title.innerText="Ticket "+t.id;
   title.style.marginBottom="5px";
   card.appendChild(title);
-
 
   const grid=document.createElement("div");
   grid.className="ticket";
@@ -188,8 +176,6 @@ function createTicket(t){
   card.appendChild(grid);
   tickets.appendChild(card);
 }
-
-
 /* =================================================
    SOCKET EVENTS
 ================================================= */
@@ -207,7 +193,6 @@ socket.on("number", n=>{
   const el=document.getElementById("num"+n);
   if(el) el.classList.add("called");
 });
-
 
 /* =================================================
    LIVE WINNER ANNOUNCEMENT (REQUIRED)
@@ -237,7 +222,6 @@ socket.on("winner", w=>{
   });
 
 });
-
 
 /* =================================================
    WINNER DISPLAY (NEW LAYOUT)
@@ -286,13 +270,8 @@ socket.on("history", data=>{
   });
 
 });
-
-
 </script>
-
-
 <style>
-
 /* winners layout */
 .winnerGrid{
   display:flex;
