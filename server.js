@@ -294,7 +294,12 @@ io.on("connection", s => {
   s.on("join", gid => s.join(gid));
 });
 
-server.listen(3000, () => console.log("Running on 3000"));
+const PORT = process.env.PORT || 8080;
+
+server.listen(PORT, () => {
+  console.log("Running on port", PORT);
+});
+
 
 
 
