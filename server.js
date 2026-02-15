@@ -45,17 +45,23 @@ for (let i = 0; i < F.length; i++) {
 ================================================= */
 
 function generateTicket(pair) {
+
   const grid = Array.from({ length: 3 }, () => Array(9).fill(""));
 
+  // STEP 1 — choose 5 columns per row
   const rowCols = [];
+
   for (let r = 0; r < 3; r++) {
     rowCols[r] = shuffle([...Array(9).keys()]).slice(0, 5);
   }
 
+  // STEP 2 — ensure column counts <= 3
   const colCounts = Array(9).fill(0);
   rowCols.forEach(cols => cols.forEach(c => colCounts[c]++));
 
+  // STEP 3 — build number pools excluding F
   const colPools = [];
+
   for (let c = 0; c < 9; c++) {
     const start = c === 0 ? 1 : c * 10;
     const end = c === 8 ? 90 : c * 10 + 9;
@@ -64,31 +70,39 @@ function generateTicket(pair) {
     for (let n = start; n <= end; n++) {
       if (!F.includes(n)) pool.push(n);
     }
+
     colPools[c] = shuffle(pool);
   }
 
-  /* place the pair first */
-  pair.forEach(num => {
-    const col = Math.min(Math.floor(num / 10), 8);
-    for (let r = 0; r < 3; r++) {
-      if (rowCols[r].includes(col) && grid[r][col] === "") {
-        grid[r][col] = num;
-        break;
-      }
-    }
-  });
-
-  /* fill remaining cells */
+  // STEP 4 — fill normal numbers first
   for (let c = 0; c < 9; c++) {
     for (let r = 0; r < 3; r++) {
-      if (rowCols[r].includes(c) && grid[r][c] === "") {
+      if (rowCols[r].includes(c)) {
         grid[r][c] = colPools[c].shift();
       }
     }
   }
 
+  // STEP 5 — replace TWO random cells with pair numbers
+  pair.forEach(num => {
+
+    const col = Math.min(Math.floor(num / 10), 8);
+
+    for (let r = 0; r < 3; r++) {
+      if (rowCols[r].includes(col)) {
+        grid[r][col] = num;
+        break;
+      }
+    }
+
+  });
+
   return grid;
 }
+
+
+
+
 
 const ticketNumbers = t => t.numbers.flat().filter(Boolean);
 
@@ -175,10 +189,15 @@ function checkWins(gid) {
   const marked = n => g.called.includes(n);
 
   for (const t of g.tickets) {
+
     const nums = ticketNumbers(t);
     const total = nums.filter(marked).length;
-    const top = t.numbers[0].filter(n => marked(n)).length;
-    const bot = t.numbers[2].filter(n => marked(n)).length;
+
+    const topNums = t.numbers[0].filter(n => Number.isInteger(n));
+    const top = topNums.filter(n => marked(n)).length;
+
+    const bottomNums = t.numbers[2].filter(n => Number.isInteger(n));
+    const bot = bottomNums.filter(n => marked(n)).length;
 
     const announce = type => {
       if (g.winners[type]) return;
@@ -191,6 +210,7 @@ function checkWins(gid) {
     if (bot >= 4) announce("bot4");
   }
 }
+
 
 /* =================================================
    START GAME — PAIR CONTROLLED FULL HOUSE
