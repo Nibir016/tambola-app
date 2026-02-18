@@ -18,6 +18,7 @@ let games = {};
 let counter = 1;
 
 const shuffle = a => a.sort(() => Math.random() - 0.5);
+
 const ALL = [...Array(90)].map((_, i) => i + 1);
 
 /* =================================================
