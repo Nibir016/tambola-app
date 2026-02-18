@@ -24,84 +24,123 @@ const ALL = [...Array(90)].map((_, i) => i + 1);
    FIXED SET F (15 numbers) — NEVER CHANGE
 ================================================= */
 
-const F = [
-  3, 7, 12,
-  18, 22, 27,
-  33, 38, 44,
-  49, 56, 61,
-  67, 73, 88
-];
+const F = [3, 7, 12, 18, 22, 27, 33, 38, 44, 49, 56, 61, 67, 73, 88];
 
-/* build 105 unique unordered pairs */
+// Pre-calculate all 105 unique pairs from F
 const PAIRS = [];
 for (let i = 0; i < F.length; i++) {
-  for (let j = i + 1; j < F.length; j++) {
-    PAIRS.push([F[i], F[j]]);
-  }
+    for (let j = i + 1; j < F.length; j++) {
+        PAIRS.push([F[i], F[j]]);
+    }
 }
 
-/* =================================================
-   PERFECT TICKET GENERATOR (13 + 1 PAIR)
-================================================= */
-
-function generateTicket(pair) {
-
-  const grid = Array.from({ length: 3 }, () => Array(9).fill(""));
-
-  // STEP 1 — choose 5 columns per row
-  const rowCols = [];
-
-  for (let r = 0; r < 3; r++) {
-    rowCols[r] = shuffle([...Array(9).keys()]).slice(0, 5);
-  }
-
-  // STEP 2 — ensure column counts <= 3
-  const colCounts = Array(9).fill(0);
-  rowCols.forEach(cols => cols.forEach(c => colCounts[c]++));
-
-  // STEP 3 — build number pools excluding F
-  const colPools = [];
-
-  for (let c = 0; c < 9; c++) {
-    const start = c === 0 ? 1 : c * 10;
-    const end = c === 8 ? 90 : c * 10 + 9;
-
-    let pool = [];
-    for (let n = start; n <= end; n++) {
-      if (!F.includes(n)) pool.push(n);
+function generateTicket(pairFromF) {
+    const grid = Array.from({ length: 3 }, () => Array(9).fill(null));
+    
+    // 1. Determine how many numbers per column (Total must be 15)
+    // Every column must have at least 1, and max 3.
+    let colCounts = Array(9).fill(1);
+    let remaining = 6;
+    while (remaining > 0) {
+        let col = Math.floor(Math.random() * 9);
+        if (colCounts[col] < 3) {
+            colCounts[col]++;
+            remaining--;
+        }
     }
 
-    colPools[c] = shuffle(pool);
-  }
+    // 2. Map Column indices to Row indices (Ensuring 5 numbers per row)
+    // We use a simple backtracking or shuffle-check to ensure constraints
+    let success = false;
+    while (!success) {
+        const tempGrid = Array.from({ length: 3 }, () => Array(9).fill(0));
+        const rowCounts = [0, 0, 0];
+        let possible = true;
 
-  // STEP 4 — fill normal numbers first
-  for (let c = 0; c < 9; c++) {
-    for (let r = 0; r < 3; r++) {
-      if (rowCols[r].includes(c)) {
-        grid[r][c] = colPools[c].shift();
-      }
+        for (let c = 0; c < 9; c++) {
+            let count = colCounts[c];
+            let rows = [0, 1, 2].sort(() => Math.random() - 0.5);
+            let placedInCol = 0;
+
+            for (let r of rows) {
+                if (placedInCol < count && rowCounts[r] < 5) {
+                    tempGrid[r][c] = 1;
+                    rowCounts[r]++;
+                    placedInCol++;
+                }
+            }
+            if (placedInCol < count) { possible = false; break; }
+        }
+
+        if (possible && rowCounts.every(r => r === 5)) {
+            // Transfer to main grid
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<9; c++) if(tempGrid[r][c] === 1) grid[r][c] = 0;
+            }
+            success = true;
+        }
     }
-  }
 
-  // STEP 5 — replace TWO random cells with pair numbers
-  pair.forEach(num => {
+    // 3. Prepare Number Pools (Excluding the chosen Pair from F for the 13 other slots)
+    const getColRange = (c) => {
+        const start = c === 0 ? 1 : c * 10;
+        const end = c === 8 ? 90 : c * 10 + 9;
+        let pool = [];
+        for (let n = start; n <= end; n++) {
+            // Exclude ALL F numbers from the general pool to ensure 
+            // the ticket ONLY contains the specific assigned pair from F.
+            if (!F.includes(n)) pool.push(n);
+        }
+        return pool.sort(() => Math.random() - 0.5);
+    };
 
-    const col = Math.min(Math.floor(num / 10), 8);
+    const pools = Array.from({ length: 9 }, (_, i) => getColRange(i));
 
-    for (let r = 0; r < 3; r++) {
-      if (rowCols[r].includes(col)) {
-        grid[r][col] = num;
-        break;
-      }
+    // 4. Place the specific Pair from F
+    pairFromF.forEach(num => {
+        const col = num <= 9 ? 0 : num >= 80 ? 8 : Math.floor(num / 10);
+        // Find a slot in this column. If no slot exists in the random pattern,
+        // we force one (this is rare due to the F distribution).
+        let placed = false;
+        for (let r = 0; r < 3; r++) {
+            if (grid[r][col] === 0) {
+                grid[r][col] = num;
+                placed = true;
+                break;
+            }
+        }
+        // Fallback: If pattern didn't have a slot for F number, take any row in that column
+        if (!placed) {
+            let r = Math.floor(Math.random() * 3);
+            grid[r][col] = num; 
+        }
+    });
+
+    // 5. Fill remaining slots from pools
+    for (let c = 0; c < 9; c++) {
+        for (let r = 0; r < 3; r++) {
+            if (grid[r][c] === 0) {
+                grid[r][c] = pools[c].pop();
+            }
+        }
     }
 
-  });
+    // 6. Final Sort Columns (Crucial for Tambola rules)
+    for (let c = 0; c < 9; c++) {
+        let colValues = [];
+        for (let r = 0; r < 3; r++) {
+            if (grid[r][c] !== null) colValues.push(grid[r][c]);
+        }
+        colValues.sort((a, b) => a - b);
+        let idx = 0;
+        for (let r = 0; r < 3; r++) {
+            if (grid[r][c] !== null) grid[r][c] = colValues[idx++];
+            else grid[r][c] = ""; // Convert null to empty string for UI
+        }
+    }
 
-  return grid;
+    return grid;
 }
-
-
-
 
 
 const ticketNumbers = t => t.numbers.flat().filter(Boolean);
