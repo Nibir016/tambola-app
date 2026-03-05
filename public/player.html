@@ -50,35 +50,69 @@ loadGames();
    OPEN GAME
 ================================================= */
 
+/* =================================================
+   OPEN GAME (UPDATED TO HANDLE SYNC ORDER)
+================================================= */
 async function openGame(gid){
-
   currentGame = gid;
-
-  socket.emit("join", gid);
+  gameOver = false; // Reset for new game view
 
   view.innerHTML = `
     <h2>${gid}</h2>
-
     <h1 id="live" style="font-size:80px;text-align:center">-</h1>
-
     <div id="boardBox" style="margin:20px"></div>
-
     <h3>🏆 Winners</h3>
     <div id="winners" class="winnerGrid"></div>
-
     <h3>Tickets</h3>
-
     <div style="margin-bottom:10px">
       🔍 Find Ticket:
       <input id="searchInput" placeholder="Enter ID">
       <button onclick="searchTicket()">Find</button>
     </div>
-
     <div id="tickets" class="wrapper"></div>
   `;
+  
   createBoard();
-  loadTickets(gid);
+  
+  // 1. Load tickets first and WAIT for them to finish
+  await loadTickets(gid);
+  
+  // 2. ONLY THEN join the socket to get the history
+  socket.emit("join", gid);
 }
+
+/* =================================================
+   HISTORY SYNC (IMPROVED)
+================================================= */
+socket.on("history", data => {
+  if (!data.called) return;
+
+  // Clear current winners display to avoid duplicates on reconnect
+  winners.innerHTML = "";
+
+  data.called.forEach(n => {
+    // Update the live number to the most recent one in history
+    live.innerText = n;
+
+    // Mark the board
+    const el = document.getElementById("num" + n);
+    if (el) el.classList.add("called");
+
+    // Mark the tickets (Now guaranteed to exist because of 'await' above)
+    document.querySelectorAll(".cell").forEach(c => {
+      if (c.innerText == n) c.classList.add("marked");
+    });
+  });
+
+  // Restore winners
+  Object.entries(data.winners).forEach(([type, id]) => {
+    if (type === "full") gameOver = true;
+    const card = document.createElement("div");
+    card.className = "winnerCard";
+    card.innerHTML = `<b>${labels[type] || type}</b><br>Ticket ${id}`;
+    winners.appendChild(card);
+  });
+});
 /* =================================================
    CREATE BOARD
 ================================================= */
@@ -238,38 +272,6 @@ const labels = {
    HISTORY SYNC (NEW)
 ================================================= */
 
-socket.on("history", data=>{
-
-  // restore called numbers
-  data.called.forEach(n=>{
-
-    live.innerText = n;
-
-    const el=document.getElementById("num"+n);
-    if(el) el.classList.add("called");
-
-    document.querySelectorAll(".cell").forEach(c=>{
-      if(c.innerText==n) c.classList.add("marked");
-    });
-
-  });
-
-  // restore winners
-  Object.entries(data.winners).forEach(([type,id])=>{
-
-    const card=document.createElement("div");
-    card.className="winnerCard";
-
-    card.innerHTML=`
-      <b>${labels[type] || type}</b><br>
-      Ticket ${id}
-    `;
-
-    winners.appendChild(card);
-
-  });
-
-});
 </script>
 <style>
 /* winners layout */

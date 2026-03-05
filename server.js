@@ -289,10 +289,19 @@ function startGame(gid, interval) {
       return;
     }
 
-    g.called.push(n);
-    io.to(gid).emit("number", n);
-    checkWins(gid);
+ g.called.push(n);
 
+    // 1. Keep this for your existing player.html "socket.on('number')" listener
+    io.to(gid).emit("number", n);
+
+    // 2. Keep this if you want to use the new "state" approach, 
+    // but "number" is what your current HTML already uses!
+    io.to(gid).emit("updateState", {
+      lastNumber: n,
+      allCalled: g.called
+    });
+
+    checkWins(gid);
     /* FULL HOUSE CHECK */
     if (winner) {
       const total = ticketNumbers(winner)
@@ -350,8 +359,25 @@ app.get("/pdf/:gid", (req, res) => {
    SOCKET
 ================================================= */
 
+/* =================================================
+   SOCKET — SYNC ON JOIN
+================================================= */
+
+/* =================================================
+   SOCKET — SYNC ON JOIN (MATCHED TO HTML)
+================================================= */
 io.on("connection", s => {
-  s.on("join", gid => s.join(gid));
+  s.on("join", gid => {
+    s.join(gid);
+    
+    if (games[gid]) {
+      // We send the 'history' event which your HTML is already set up to listen for
+      s.emit("history", {
+        called: games[gid].called,
+        winners: games[gid].winners
+      });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 8080;
